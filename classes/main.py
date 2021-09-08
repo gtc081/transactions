@@ -2,9 +2,6 @@ import json
 from classes.violations import *
 from datetime import datetime
 
-utc_time = datetime.strptime("2009-03-08T00:27:31.807Z", "%Y-%m-%dT%H:%M:%S.%fZ")
-epoch_time = (utc_time - datetime(1970, 1, 1)).total_seconds()
-
 class Main:
     def __init__(self):
         self.activate_card = False
@@ -12,6 +9,7 @@ class Main:
         self.limit = 0
         self.violations = []
         self.transactions = []
+        self.transactions_printed = []
 
     def check_account(self, line):
         if self.activate_card:
@@ -24,7 +22,7 @@ class Main:
     def convert_epoch(self, t):
         utc_time = datetime.strptime(t, "%Y-%m-%dT%H:%M:%S.%fZ")
         epoch_time = (utc_time - datetime(1970, 1, 1)).total_seconds()
-        return epoch_time
+        return int(epoch_time)
 
     def check_HFSI(self, l):
         c = 0
@@ -62,7 +60,7 @@ class Main:
             self.limit = self.limit - int(line['amount'])
             self.transactions.append(line)
 
-    def print_line(self):
+    def add_line(self):
         if not self.account:
             a = {}
         else:
@@ -74,24 +72,28 @@ class Main:
                 "account":a, 
                 "violations":self.violations
             }
-        print(json.dumps(r))
+        self.transactions_printed.append(json.dumps(r))
 
     def check_lines(self, line):
         try:
             l = json.loads(line)
             if "account" in l:
                 self.check_account(l['account'])
-                self.print_line()
+                self.add_line()
             elif "transaction" in l:
                 self.check_transaction(l['transaction'])
-                self.print_line()
+                self.add_line()
             else:
                 print("ERRO: JSON sem informação de \"account\" ou de \"transaction\"")
                 raise
+            self.violations = []
         except json.decoder.JSONDecodeError:
             print("ERRO: linha não está no formato JSON adequado")
 
     def check_ops(self, lines):
         for i in lines:
             self.check_lines(i)
-            self.violations = []
+
+    def print_lines(self):
+        for i in self.transactions_printed:
+            print(i)
